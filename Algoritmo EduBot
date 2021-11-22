@@ -1,0 +1,98 @@
+/*
+* EDUBOT MAZE SOLVER
+* @Author: Eduardo Bolson <eduardobolson2@gmail.com>
+           Paolo Gabriel Orguim Simioni <paolowow00@gmail.com>
+           Igor Martins Silva <00333069@ufrgs.br>
+           Luana Taynara da Costa Hahn <00315418@ufrgs.br>
+*/
+
+#include <iostream>
+#include <stdio.h>
+#include <stdlib.h>
+#include "libs/EdubotLib.hpp"
+
+#define MIN_DIST 0.07 //Maze: 0.2, Pacman: 0.07
+#define MIN_DIST_SIDE 3*MIN_DIST
+#define SPEED 0.2 //Maze: 0.5, Pacman: 0.2
+#define TIME 2000 //Maze: 1500, Pacman 2000
+
+EdubotLib *edubot = new EdubotLib();
+
+void moveForward();
+int validDirection(int dirRotate);
+
+int main()
+{
+	int dirRotate;
+
+	srand(0);
+
+	if(edubot->connect()){
+		edubot->sleepMilliseconds(250);
+		while(edubot->isConnected())
+		{
+			moveForward();
+			if((edubot->getSonar(6) <= MIN_DIST_SIDE) && (edubot->getSonar(0) <= MIN_DIST_SIDE))
+				edubot->rotate(180);
+			else
+			{
+				if(edubot->getSonar(6) <= MIN_DIST_SIDE)
+					edubot->rotate(-90);
+				else if(edubot->getSonar(0) <= MIN_DIST_SIDE)
+					edubot->rotate(90);
+				else
+				{
+					dirRotate = rand() % 2;
+					switch(dirRotate)
+					{
+						case 0:
+							edubot->rotate(90);
+							break;
+						case 1:
+							edubot->rotate(-90);
+						break;
+					}
+				}
+			}
+			edubot->sleepMilliseconds(2000);
+		}        
+		edubot->disconnect();
+		}
+		else
+			printf("Could not connect to robot!\n");
+
+		return 0;
+}
+
+void moveForward()
+{
+	int moveDir;
+
+	edubot->move(SPEED);
+	do{ }while(edubot->getSonar(3) >= MIN_DIST && ((edubot->getSonar(6) <= MIN_DIST_SIDE) || (edubot->getSonar(0) <= MIN_DIST_SIDE)));
+	if(edubot->getSonar(3) >= MIN_DIST && ((edubot->getSonar(6) >= MIN_DIST_SIDE) && (edubot->getSonar(0) >= MIN_DIST_SIDE)))
+	{
+		edubot->move(SPEED/2);
+		edubot->sleepMilliseconds(TIME);
+		edubot->stop();
+		edubot->sleepMilliseconds(1000);
+		moveDir = rand() % 3;
+		switch(moveDir)
+		{
+			case 0:
+				edubot->rotate(90);
+				break;
+			case 1:
+				edubot->rotate(-90);
+				break;
+			case 2:
+				break;
+		}
+		edubot->sleepMilliseconds(2000);
+		edubot->move(SPEED);
+		do{ }while(edubot->getSonar(3) >= MIN_DIST && ((edubot->getSonar(6) >= MIN_DIST_SIDE) || (edubot->getSonar(0) >= MIN_DIST_SIDE)));
+		moveForward();
+	}
+	edubot->stop();
+	edubot->sleepMilliseconds(1000);
+}
