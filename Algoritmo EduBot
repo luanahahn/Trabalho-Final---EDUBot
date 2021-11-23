@@ -11,88 +11,128 @@
 #include <stdlib.h>
 #include "libs/EdubotLib.hpp"
 
-#define MIN_DIST 0.07 //Maze: 0.2, Pacman: 0.07
+#define MAZE 0
+#define PACMAN 1
+#if PACMAN //<-- Mudar aqui o mapa escolhido!
+#define MIN_DIST 0.07 //Pacman
+#define SPEED 0.2
+#define TIME 2000
+#else
+#define MIN_DIST 0.2 //Maze
+#define SPEED 0.5
+#define TIME 1500
+#endif
 #define MIN_DIST_SIDE 3*MIN_DIST
-#define SPEED 0.2 //Maze: 0.5, Pacman: 0.2
-#define TIME 2000 //Maze: 1500, Pacman 2000
 
 EdubotLib *edubot = new EdubotLib();
 
-void moveForward();
-int validDirection(int dirRotate);
+int colisionRoutine();
 
 int main()
 {
-	int dirRotate;
+	int moveDir;
 
-	srand(0);
+	srand(0); //0
 
 	if(edubot->connect()){
 		edubot->sleepMilliseconds(250);
 		while(edubot->isConnected())
 		{
-			moveForward();
-			if((edubot->getSonar(6) <= MIN_DIST_SIDE) && (edubot->getSonar(0) <= MIN_DIST_SIDE))
-				edubot->rotate(180);
-			else
+			if(!colisionRoutine())
 			{
-				if(edubot->getSonar(6) <= MIN_DIST_SIDE)
-					edubot->rotate(-90);
-				else if(edubot->getSonar(0) <= MIN_DIST_SIDE)
-					edubot->rotate(90);
-				else
+				edubot->move(SPEED);
+				while(edubot->getSonar(3) >= MIN_DIST && ((edubot->getSonar(6) <= MIN_DIST_SIDE) || (edubot->getSonar(0) <= MIN_DIST_SIDE))){}; //Move enquanto encontra paredes ao seu lado e não encontra parede afrente.
+				if(edubot->getSonar(3) >= MIN_DIST && ((edubot->getSonar(6) >= MIN_DIST_SIDE) && (edubot->getSonar(0) >= MIN_DIST_SIDE))) //Se não encontrar paredes em nenhum dos lados, escolhe uma direção aleatória para seguir
 				{
-					dirRotate = rand() % 2;
-					switch(dirRotate)
+					edubot->move(SPEED/2);
+					edubot->sleepMilliseconds(TIME);
+					edubot->stop();
+					edubot->sleepMilliseconds(1000);
+					moveDir = rand() % 3;
+					switch(moveDir)
 					{
 						case 0:
 							edubot->rotate(90);
 							break;
 						case 1:
 							edubot->rotate(-90);
-						break;
+							break;
+						case 2:
+							break;
 					}
+					edubot->sleepMilliseconds(2000);
+					edubot->stop();
+					edubot->move(SPEED);
+					while(edubot->getSonar(3) >= MIN_DIST && ((edubot->getSonar(6) >= MIN_DIST_SIDE) || (edubot->getSonar(0) >= MIN_DIST_SIDE))){};
+				}
+				else //Senão, segue uma rotina para casos específicos
+				{
+					edubot->stop();
+					edubot->sleepMilliseconds(1000);
+					if((edubot->getSonar(6) <= MIN_DIST_SIDE) && (edubot->getSonar(0) <= MIN_DIST_SIDE))
+						edubot->rotate(180);
+					else
+					{
+						if(edubot->getSonar(6) <= MIN_DIST_SIDE)
+							edubot->rotate(-90);
+						else if(edubot->getSonar(0) <= MIN_DIST_SIDE)
+							edubot->rotate(90);
+						else //Escolhe uma direção aleatória caso tenha essa opção (direita ou esquerda)
+						{
+							moveDir = rand() % 2;
+							switch(moveDir)
+							{
+								case 0:
+									edubot->rotate(90);
+									break;
+								case 1:
+									edubot->rotate(-90);
+								break;
+							}
+						}
+					}
+					edubot->sleepMilliseconds(2000);
 				}
 			}
-			edubot->sleepMilliseconds(2000);
 		}        
 		edubot->disconnect();
-		}
-		else
-			printf("Could not connect to robot!\n");
+	}
+	else
+		printf("Could not connect to robot!\n");
 
-		return 0;
+	return 0;
 }
 
-void moveForward()
+int colisionRoutine()
 {
-	int moveDir;
-
-	edubot->move(SPEED);
-	do{ }while(edubot->getSonar(3) >= MIN_DIST && ((edubot->getSonar(6) <= MIN_DIST_SIDE) || (edubot->getSonar(0) <= MIN_DIST_SIDE)));
-	if(edubot->getSonar(3) >= MIN_DIST && ((edubot->getSonar(6) >= MIN_DIST_SIDE) && (edubot->getSonar(0) >= MIN_DIST_SIDE)))
+	double angle;
+	float speed;
+	
+	if(edubot->getBumper(0) || edubot->getBumper(1) || edubot->getBumper(2) || edubot->getBumper(3))
 	{
-		edubot->move(SPEED/2);
-		edubot->sleepMilliseconds(TIME);
+		if(edubot->getBumper(0) || edubot->getBumper(1))
+			speed = -SPEED/2;
+		else
+			speed = SPEED/2;
+		edubot->stop();
+		edubot->move(speed);
+		edubot->sleepMilliseconds(25);
 		edubot->stop();
 		edubot->sleepMilliseconds(1000);
-		moveDir = rand() % 3;
-		switch(moveDir)
-		{
-			case 0:
-				edubot->rotate(90);
-				break;
-			case 1:
-				edubot->rotate(-90);
-				break;
-			case 2:
-				break;
-		}
+		angle = edubot->getTheta();
+		if(angle > 0 && angle < 90)
+			edubot->rotate(-angle);
+		else if(angle > 90 && angle < 180)
+			edubot->rotate(-(angle - 90));
+		else if(angle > 180 && angle < 270)
+			edubot->rotate(angle - 180);
+		else
+			edubot->rotate(angle - 270);
 		edubot->sleepMilliseconds(2000);
-		edubot->move(SPEED);
-		do{ }while(edubot->getSonar(3) >= MIN_DIST && ((edubot->getSonar(6) >= MIN_DIST_SIDE) || (edubot->getSonar(0) >= MIN_DIST_SIDE)));
-		moveForward();
+		edubot->stop();
+
+		return 1;
 	}
-	edubot->stop();
-	edubot->sleepMilliseconds(1000);
+
+	return 0;
 }
